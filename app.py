@@ -11,8 +11,9 @@ import io
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load Model
+model_path = "best-model.pth"
 model = MyCnn(num_classes=7)
-state_dict = torch.load("best-model.pth", map_location=device)
+state_dict = torch.load(model_path, map_location=device)
 model.load_state_dict(state_dict)
 
 model.to(device)
