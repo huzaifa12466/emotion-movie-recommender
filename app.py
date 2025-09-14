@@ -11,10 +11,9 @@ import io
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load Model
-model_path = "best-model.pth"
 model = MyCnn(num_classes=7)
-state_dict = torch.load(model_path, map_location=device)
-model.load_state_dict(state_dict)
+state_dict = torch.load("best-model.pth", map_location=device)
+model.load_state_dict(state_dict)   # ⚠️ function call, assign mat karna
 
 model.to(device)
 model.eval()
@@ -55,8 +54,8 @@ def predict_emotion(img):
     with torch.no_grad():
         output = model(input_tensor)
         probs = F.softmax(output, dim=1)
-        # pred_idx = torch.argmax(probs, dim=1).item()
-        emotion = fer_emotions[probs]
+        pred_idx = torch.argmax(probs, dim=1).item()
+        emotion = fer_emotions[pred_idx]
         genres = emotion_to_genre[emotion]
     return emotion, genres, probs.cpu().numpy()
 
