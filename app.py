@@ -12,7 +12,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load Model
 model = MyCnn(num_classes=7)
-model.load_state_dict=torch.load("best-model.pth", map_location=device)  # ✅ fix
+state_dict = torch.load("best-model.pth", map_location=device)
+model.load_state_dict(state_dict)
+
 model.to(device)
 model.eval()
 

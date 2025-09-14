@@ -1,0 +1,49 @@
+# =====================
+# Python
+# =====================
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# =====================
+# Virtual Environment
+# =====================
+.venv/
+env/
+venv/
+ENV/
+
+# =====================
+# Jupyter / Colab
+# =====================
+.ipynb_checkpoints
+*.ipynb
+
+# =====================
+# System / OS
+# =====================
+.DS_Store
+Thumbs.db
+
+# =====================
+# PyTorch / Models
+# =====================
+# *.pth
+*.pt
+*.onnx
+
+# =====================
+# Logs / Temp
+# =====================
+*.log
+*.tmp
+*.bak
+
+# =====================
+# Streamlit cache
+# =====================
+.streamlit/
