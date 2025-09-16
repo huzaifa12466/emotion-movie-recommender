@@ -13,7 +13,7 @@ from model import load_model
 # --------------------------
 # Download model from Google Drive
 # --------------------------
-MODEL_ID = "1AbCdEfGh1234567"  # <-- apna file_id yaha daalo
+MODEL_ID = "1jVt0QhlNlnqGvh9tpGMApHeaBtsu5N6d" 
 MODEL_PATH = "best_model.pth"
 
 if not os.path.exists(MODEL_PATH):
