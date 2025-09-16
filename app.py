@@ -1,95 +1,123 @@
 import streamlit as st
+import cv2
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torchvision import transforms
 from PIL import Image
 import pandas as pd
-from model import MyCnn
-import io
+import os
+import gdown  # ✅ Google Drive downloader
+from model import load_model
 
-# ========== Config ==========
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# --------------------------
+# Download model from Google Drive
+# --------------------------
+MODEL_ID = "1AbCdEfGh1234567"  # <-- apna file_id yaha daalo
+MODEL_PATH = "best_model.pth"
 
-# Load Model
-model = MyCnn(num_classes=7)
-state_dict = torch.load("best-model.pth", map_location=device)
-model.load_state_dict(state_dict)   # ⚠️ function call, assign mat karna
+if not os.path.exists(MODEL_PATH):
+    with st.spinner("Downloading model from Google Drive..."):
+        gdown.download(f"https://drive.google.com/uc?id={MODEL_ID}", MODEL_PATH, quiet=False)
 
-model.to(device)
-model.eval()
+# --------------------------
+# Load model
+# --------------------------
+model, device = load_model(MODEL_PATH, num_classes=7)
 
-# Emotions + Mapping
 fer_emotions = ["Anger","Disgust","Fear","Happy","Sad","Surprise","Neutral"]
 
-emotion_to_genre = {
-    "Anger": ["Action", "Thriller"],
-    "Disgust": ["Comedy", "Family"],
-    "Fear": ["Horror", "Thriller"],
-    "Happy": ["Romance", "Comedy"],
-    "Sad": ["Drama", "Biography"],
-    "Surprise": ["Adventure", "Fantasy"],
-    "Neutral": ["Drama", "Documentary"]
-}
-
-# Movies Dataset
-df = pd.read_csv("movies_dataset.csv")
-
-# Image Transform (⚠️ confirm yehi training time pe tha ya nahi)
 transform = transforms.Compose([
-    transforms.Resize((224,224)),
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
     transforms.ToTensor(),
-    transforms.Normalize([0.485,0.456,0.406],[0.229,0.224,0.225])
+    transforms.Normalize(mean=[0.485,0.485,0.485], std=[0.229,0.229,0.229])
 ])
 
-# Recommend Movies Function
-def recommend_movies(genre, top_n=5):
-    filtered_df = df[df['main_genre'].str.contains(genre, case=False, na=False)]
-    if len(filtered_df) == 0:
-        return []
-    return filtered_df.sample(min(top_n, len(filtered_df)))['Movie_Title'].tolist()
+# --------------------------
+# Dataset + Emotion → Genre mapping
+# --------------------------
+df = pd.read_csv(
+    "movies_dataset.csv",
+    engine='python',
+    encoding='utf-8',
+    on_bad_lines='skip'
+)
 
-# Predict Emotion Function
-def predict_emotion(img):
-    input_tensor = transform(img).unsqueeze(0).to(device)
+emotion_to_genre = {
+    "Anger": ["Action", "Crime"],
+    "Disgust": ["Comedy"],
+    "Fear": ["Horror", "Mystery"],
+    "Happy": ["Comedy", "Animation"],
+    "Sad": ["Drama", "Biography"],
+    "Surprise": ["Adventure", "Fantasy"],
+    "Neutral": ["Drama"]
+}
+
+# --------------------------
+# Helpers
+# --------------------------
+def predict_emotion(img: Image.Image):
+    tensor = transform(img).unsqueeze(0).to(device)
     with torch.no_grad():
-        output = model(input_tensor)
-        probs = F.softmax(output, dim=1)
-        pred_idx = torch.argmax(probs, dim=1).item()
-        emotion = fer_emotions[pred_idx]
-        genres = emotion_to_genre[emotion]
-    return emotion, genres, probs.cpu().numpy()
+        output = model(tensor)
+        probs = F.softmax(output, dim=1).cpu().numpy()[0]
+    top_idx = probs.argmax()
+    return fer_emotions[top_idx], probs[top_idx]
 
-# ========== Streamlit UI ==========
-st.title("🎭 Emotion-based Movie Recommender")
+def recommend_movies(emotion, top_n=5):
+    genres = emotion_to_genre.get(emotion, ["Drama"])
+    filtered = df[df["main_genre"].apply(lambda x: any(g in x for g in genres))]
+    if filtered.empty:
+        return ["No movies found for this emotion."]
+    return filtered.sample(min(top_n, len(filtered)))["Movie_Title"].tolist()
 
-st.sidebar.header("Choose Input Mode")
-mode = st.sidebar.radio("Select input source:", ["Upload Image", "Webcam"])
+# --------------------------
+# Streamlit UI
+# --------------------------
+st.title("🎭 Emotion Detection + 🎬 Movie Recommendation")
 
-img = None
+option = st.radio("Choose input method:", ["Upload Image", "Webcam"])
 
-if mode == "Upload Image":
-    uploaded = st.file_uploader("Upload a face image", type=["jpg","png","jpeg"])
-    if uploaded:
-        img = Image.open(uploaded).convert('RGB')
+if option == "Upload Image":
+    file = st.file_uploader("Upload an image", type=["jpg","jpeg","png"])
+    if file is not None:
+        img = Image.open(file).convert("RGB")
         st.image(img, caption="Uploaded Image", use_container_width=True)
 
-elif mode == "Webcam":
-    camera_image = st.camera_input("Take a photo")
-    if camera_image:
-        img = Image.open(io.BytesIO(camera_image.getvalue())).convert('RGB')
-        st.image(img, caption="Captured Image", use_container_width=True)
+        emotion, prob = predict_emotion(img)
+        st.success(f"Predicted Emotion: **{emotion}** ({prob:.2f})")
 
-# ✅ Predict button
-if img:
-    if st.button("🔮 Predict Emotion & Recommend Movies"):
-        emotion, genres, probs = predict_emotion(img)
-        st.subheader(f"Detected Emotion: {emotion}")
-        st.write(f"Recommended Genres: {genres}")
+        st.subheader("🎬 Recommended Movies:")
+        for m in recommend_movies(emotion, top_n=5):
+            st.write(f"- {m}")
 
-        movies = []
-        for g in genres:
-            movies.extend(recommend_movies(g, top_n=3))
-        if movies:
-            st.write("🎬 Recommended Movies:", movies)
-        else:
-            st.warning("No movies found for this emotion in dataset.")
+elif option == "Webcam":
+    st.write("Click **Start** to use your webcam")
+    run = st.checkbox("Start Webcam")
+
+    FRAME_WINDOW = st.image([])
+    cap = cv2.VideoCapture(0)
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+    while run:
+        ret, frame = cap.read()
+        if not ret:
+            st.error("Webcam not working!")
+            break
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+        for (x, y, w, h) in faces:
+            face_img = frame[y:y+h, x:x+w]
+            pil_img = Image.fromarray(cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB))
+            emotion, prob = predict_emotion(pil_img)
+
+            cv2.rectangle(frame, (x,y), (x+w,y+h), (0,255,0), 2)
+            cv2.putText(frame, f"{emotion} ({prob:.2f})", (x, y-10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+
+        FRAME_WINDOW.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+
+    cap.release()
