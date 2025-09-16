@@ -13,7 +13,7 @@ from model import load_model
 # --------------------------
 # Download model from Google Drive
 # --------------------------
-MODEL_ID = "1jVt0QhlNlnqGvh9tpGMApHeaBtsu5N6d" 
+MODEL_ID = "1tLnKKniWpkAss2Vp7auKuJsorrqtZpVU" 
 MODEL_PATH = "best_model.pth"
 
 if not os.path.exists(MODEL_PATH):
