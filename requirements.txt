@@ -1,8 +1,7 @@
-torch
-torchvision
-streamlit
+torch==2.2.0
+torchvision==0.17.0
+streamlit==1.36.0
 pandas
 Pillow
 opencv-python-headless
 gdown
-
