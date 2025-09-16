@@ -7,32 +7,25 @@ from torchvision import transforms
 from PIL import Image
 import pandas as pd
 import os
-import gdown
+from huggingface_hub import hf_hub_download  # ✅ HF Hub se model load
 from model import load_model
 
 # --------------------------
-# Google Drive Model Download + Cache
+# Download model from Hugging Face Hub
 # --------------------------
-MODEL_ID = "1tLnKKniWpkAss2Vp7auKuJsorrqtZpVU"
-MODEL_PATH = "best_model.pth"
-MODEL_SIZE_MB = 200  # approx size of your model
+REPO_ID = "huzaif56567/emotion-movie-detector"   # <-- apna HF repo_id daalo
+MODEL_FILENAME = "best_model.pth"
 
-def download_model():
-    if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < MODEL_SIZE_MB * 1024 * 1024:
-        with st.spinner("📥 Downloading model from Google Drive..."):
-            gdown.download(f"https://drive.google.com/uc?id={MODEL_ID}", MODEL_PATH, quiet=False, fuzzy=True)
-    return MODEL_PATH
-
-@st.cache_resource
-def load_cached_model():
-    model_path = download_model()
-    model, device = load_model(model_path, num_classes=7)
-    return model, device
+with st.spinner("Downloading model from Hugging Face Hub..."):
+    MODEL_PATH = hf_hub_download(
+        repo_id=REPO_ID,
+        filename=MODEL_FILENAME
+    )
 
 # --------------------------
-# Load model once
+# Load model
 # --------------------------
-model, device = load_cached_model()
+model, device = load_model(MODEL_PATH, num_classes=7)
 
 fer_emotions = ["Anger","Disgust","Fear","Happy","Sad","Surprise","Neutral"]
 
@@ -130,4 +123,5 @@ elif option == "Webcam":
         FRAME_WINDOW.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
     cap.release()
+
 
