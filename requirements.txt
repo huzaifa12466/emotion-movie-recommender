@@ -3,6 +3,6 @@ torchvision
 streamlit
 pandas
 Pillow
-opencv-python
+opencv-python-headless
 gdown
 
