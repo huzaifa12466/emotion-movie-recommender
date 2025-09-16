@@ -4,3 +4,5 @@ streamlit
 pandas
 Pillow
 opencv-python
+gdown
+
